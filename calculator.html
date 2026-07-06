@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Calculator</title>
+<style>
+  :root {
+    --body-bg: #1b1c20;
+    --case-bg: #232428;
+    --case-edge: #2f3136;
+    --display-bg: #12120f;
+    --display-fg: #ffb37a;
+    --key-fn: #3a3b40;
+    --key-fn-fg: #ffb37a;
+    --key-num: #2c2d32;
+    --key-num-fg: #eceded;
+    --key-eq: #ff7a3d;
+    --key-eq-fg: #1b1c20;
+    font-family: 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 20%, #26272c, #131316 75%);
+    font-family: 'Courier New', monospace;
+  }
+
+  .calc {
+    width: 320px;
+    background: var(--case-bg);
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow:
+      0 0 0 1px var(--case-edge),
+      0 25px 50px -12px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .brand {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: #6d6e73;
+    font-size: 11px;
+    letter-spacing: 3px;
+    padding: 0 4px 12px;
+    text-transform: uppercase;
+  }
+
+  .brand span:last-child {
+    color: var(--key-eq);
+  }
+
+  .display {
+    background: var(--display-bg);
+    border-radius: 12px;
+    padding: 22px 18px 16px;
+    margin-bottom: 18px;
+    text-align: right;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+
+  .display .prev {
+    color: #7d7460;
+    font-size: 14px;
+    min-height: 18px;
+    letter-spacing: 1px;
+  }
+
+  .display .curr {
+    color: var(--display-fg);
+    font-size: 38px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    overflow-x: auto;
+    text-shadow: 0 0 12px rgba(255,179,122,0.35);
+  }
+
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  button {
+    border: none;
+    border-radius: 12px;
+    padding: 18px 0;
+    font-size: 18px;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--key-num-fg);
+    background: var(--key-num);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+  }
+
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  button.fn {
+    background: var(--key-fn);
+    color: var(--key-fn-fg);
+  }
+
+  button.zero {
+    grid-column: span 2;
+  }
+
+  button.eq {
+    background: var(--key-eq);
+    color: var(--key-eq-fg);
+    font-weight: bold;
+    box-shadow: 0 3px 0 #b95728, inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+
+  button.eq:active {
+    box-shadow: 0 1px 0 #b95728;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--key-eq);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 360px) {
+    .calc { width: 92vw; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="calc">
+  <div class="brand"><span>Model CX-01</span><span>Solar</span></div>
+
+  <div class="display">
+    <div class="prev" id="prevOperand">&nbsp;</div>
+    <div class="curr" id="currOperand">0</div>
+  </div>
+
+  <div class="keys">
+    <button class="fn" data-action="clear">AC</button>
+    <button class="fn" data-action="delete">DEL</button>
+    <button class="fn" data-action="percent">%</button>
+    <button class="fn" data-op="/">÷</button>
+
+    <button data-num="7">7</button>
+    <button data-num="8">8</button>
+    <button data-num="9">9</button>
+    <button class="fn" data-op="*">×</button>
+
+    <button data-num="4">4</button>
+    <button data-num="5">5</button>
+    <button data-num="6">6</button>
+    <button class="fn" data-op="-">−</button>
+
+    <button data-num="1">1</button>
+    <button data-num="2">2</button>
+    <button data-num="3">3</button>
+    <button class="fn" data-op="+">+</button>
+
+    <button class="zero" data-num="0">0</button>
+    <button data-num=".">.</button>
+    <button class="eq" data-action="equals">=</button>
+  </div>
+</div>
+
+<script>
+  const prevOperandEl = document.getElementById('prevOperand');
+  const currOperandEl = document.getElementById('currOperand');
+
+  let currentOperand = '0';
+  let previousOperand = '';
+  let operation = undefined;
+  let justEvaluated = false;
+
+  function updateDisplay() {
+    currOperandEl.textContent = currentOperand;
+    prevOperandEl.textContent = operation
+      ? `${previousOperand} ${operation}`
+      : '\u00A0';
+  }
+
+  function appendNumber(num) {
+    if (justEvaluated) {
+      currentOperand = (num === '.') ? '0.' : num;
+      justEvaluated = false;
+      return;
+    }
+    if (num === '.' && currentOperand.includes('.')) return;
+    if (currentOperand === '0' && num !== '.') {
+      currentOperand = num;
+    } else {
+      currentOperand += num;
+    }
+  }
+
+  function chooseOperation(op) {
+    if (currentOperand === '') return;
+    if (previousOperand !== '') {
+      compute();
+    }
+    operation = op;
+    previousOperand = currentOperand;
+    currentOperand = '0';
+    justEvaluated = false;
+  }
+
+  function compute() {
+    let result;
+    const prev = parseFloat(previousOperand);
+    const curr = parseFloat(currentOperand);
+    if (isNaN(prev) || isNaN(curr)) return;
+
+    switch (operation) {
+      case '+': result = prev + curr; break;
+      case '-': result = prev - curr; break;
+      case '*': result = prev * curr; break;
+      case '/': result = curr === 0 ? NaN : prev / curr; break;
+      default: return;
+    }
+
+    result = Math.round((result + Number.EPSILON) * 1e10) / 1e10;
+    currentOperand = isNaN(result) ? 'Error' : result.toString();
+    operation = undefined;
+    previousOperand = '';
+  }
+
+  function clearAll() {
+    currentOperand = '0';
+    previousOperand = '';
+    operation = undefined;
+    justEvaluated = false;
+  }
+
+  function deleteLast() {
+    if (justEvaluated) {
+      clearAll();
+      return;
+    }
+    currentOperand = currentOperand.slice(0, -1);
+    if (currentOperand === '' || currentOperand === '-') currentOperand = '0';
+  }
+
+  function applyPercent() {
+    currentOperand = (parseFloat(currentOperand) / 100).toString();
+  }
+
+  document.querySelectorAll('[data-num]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      appendNumber(btn.dataset.num);
+      updateDisplay();
+    });
+  });
+
+  document.querySelectorAll('[data-op]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chooseOperation(btn.dataset.op);
+      updateDisplay();
+    });
+  });
+
+  document.querySelector('[data-action="equals"]').addEventListener('click', () => {
+    if (operation === undefined) return;
+    compute();
+    justEvaluated = true;
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="clear"]').addEventListener('click', () => {
+    clearAll();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="delete"]').addEventListener('click', () => {
+    deleteLast();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="percent"]').addEventListener('click', () => {
+    applyPercent();
+    updateDisplay();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key >= '0' && e.key <= '9') { appendNumber(e.key); updateDisplay(); }
+    else if (e.key === '.') { appendNumber('.'); updateDisplay(); }
+    else if (['+','-','*','/'].includes(e.key)) { chooseOperation(e.key); updateDisplay(); }
+    else if (e.key === 'Enter' || e.key === '=') {
+      e.preventDefault();
+      if (operation !== undefined) { compute(); justEvaluated = true; updateDisplay(); }
+    }
+    else if (e.key === 'Backspace') { deleteLast(); updateDisplay(); }
+    else if (e.key === 'Escape') { clearAll(); updateDisplay(); }
+  });
+
+  updateDisplay();
+</script>
+
+</body>
+</html>
